@@ -42,5 +42,3 @@ Dockerfile
 .prettierrc
 .prettierignore
 eslint.config.mjs
-postcss.config.mjs
-tailwind.config.ts

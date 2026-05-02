@@ -1,103 +1,84 @@
-import { getOpenRouter } from '@/lib/ai'
-import { AI_CONFIG } from '@/lib/config'
+import { getAgentModel } from '@/lib/ai'
 import prisma from '@/lib/prisma'
 import { streamObject, createTextStreamResponse } from 'ai'
 import { startOfDay } from 'date-fns'
 import { generatePlanSchema } from './schema'
+import { PlanPreferences } from '@/lib/types'
 
 export async function POST(req: Request) {
   try {
     const input = await req.json()
-    let apiKey = req.headers.get('x-openai-key')
-    let model = req.headers.get('x-model')
+    const today = startOfDay(new Date())
+    const plan = await prisma.plan.findUnique({ where: { date: today } })
+    const preferences = (plan?.preferences as unknown as PlanPreferences) || null
 
     if (!input || !input.content) {
       return new Response('Plan content is required', { status: 400 })
     }
 
-    // If not in headers, try to get from today's plan in DB
-    if (!apiKey || !model) {
-      const today = startOfDay(new Date())
-      const plan = await prisma.plan.findUnique({ where: { date: today } })
-      if (plan?.preferences) {
-        const prefs = plan.preferences as any
-        if (!apiKey) apiKey = prefs.openRouterKey
-        if (!model) model = prefs.model
-      }
-    }
+    // Fetch context for the prompt
+    const [okrs, projects, stakeholders] = await Promise.all([
+      prisma.oKR.findMany({ where: { status: 'ACTIVE' } }),
+      prisma.project.findMany({ where: { status: 'ACTIVE' } }),
+      prisma.stakeholderGroup.findMany(),
+    ])
 
-    model = model || AI_CONFIG.defaultModel
-    const finalApiKey = apiKey || process.env.OPENROUTER_API_KEY
-    if (!finalApiKey) {
-      return new Response(
-        JSON.stringify({
-          error: 'API key is required. Please set your OpenRouter API key in settings.',
-        }),
-        {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      )
-    }
-
-    const openrouter = getOpenRouter(apiKey)
+    const model = getAgentModel('prioritizer', preferences)
 
     const result = streamObject({
-      model: openrouter.chat(model),
+      model: model as any,
       schema: generatePlanSchema,
       output: 'object',
       prompt: `
-        Context:
-        ${JSON.stringify(input)}
+        Persona: You are a world-class Chief of Staff for a Senior Product Manager at a high-growth AI company.
+        The PM is neurodivergent (ADHD) and works on platform data integrations.
+        Your goal is to triage their brain dump into a strategic, actionable delivery plan that protects their time and focus.
 
-        Generate a list of specific, actionable tasks where:
-        - Write a super concise description of the task (single sentence)
-        - Ideally, 2-7 words
-        - Each task should take exactly 25 minutes (one pomodoro)
-        - Tasks must be ADHD-friendly: clear, specific, and actionable
-        - Focus on one clear objective per task
-        - Make as few tasks as possible while maintaining clarity
-        - Add a "backlog" section with tasks that are not due today but should be later
+        Current Context:
+        - Active OKRs: ${JSON.stringify(okrs)}
+        - Active Projects: ${JSON.stringify(projects)}
+        - Stakeholders: ${JSON.stringify(stakeholders)}
+        - User Brain Dump: "${input.content}"
+        - Energy Level: ${input.energyLevel || 'MEDIUM'}
+        - Meeting Hours Today: ${input.meetingHours || 0}h
 
-        Adding tags:
-        - Only if relevant
-        - Tag examples: "<project-name>", "blog", "seo", "meeting", "life"
-        - Tags should be a single word
-        - Add "focus" tag for high-concentration tasks
-        - Add "adhd" tag for tasks requiring extra attention management
-        - Add "important" tag for tasks that are high priority and critical to the day
+        Instructions for Task Generation:
+        1. Actionable Tasks: Each task must be a clear, discrete deliverable.
+        2. MoSCoW Distribution:
+           - MUST: Absolute critical focus today (Max 30% of total tasks).
+           - SHOULD: Important but can slide if meetings run over (Max 40%).
+           - COULD: Nice to have if energy is high.
+           - WONT: Archive/Decline.
+        3. ADHD Safety:
+           - Avoid vague titles like "Review documents". Use "Identify 3 gaps in API spec".
+           - Break anything > 2 pomodoros into smaller sub-tasks.
+           - Flag "ADHD Traps": tasks with high context-switch cost.
+        4. Classification:
+           - STRATEGIC: Directly moves an OKR or Initiative.
+           - KTLO (Keep The Lights On): Maintenance, bugs, small requests.
+           - ADMIN: Emails, scheduling, expense reports.
+           - INTERRUPT: Unexpected fires from stakeholders.
+        5. Effort (T-Shirt): Based on cognitive complexity and risk, not just time.
+        6. Estimated Pomodoros: Number of 25-minute blocks required.
 
-        Reasoning step:
-        - Take a deep breath and think step-by-step about the plan and context
-
-        Notes:
-        - Add any additional notes about the plan here, things you left out, important details, etc. It's to communicate to the user why you made the choices you did.
-        - Keep it super concise, max 80 characters
+        Reasoning: Explain your prioritization logic, specifically how you balanced KTLO vs Strategic work.
+        
+        Tasks vs Backlog:
+        - tasks: Items the user SHOULD or MUST do TODAY (based on meeting hours and energy).
+        - backlog: Items that were in the dump but are lower priority or don't fit today.
+        
+        Notes: Provide 1-2 sentences of encouragement or executive function advice (e.g., "Batch your Slack replies after your deep work block").
       `,
     })
 
-    return createTextStreamResponse({
-      textStream: result.textStream,
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      },
-    })
+    return result.toTextStreamResponse()
   } catch (error) {
     console.error('API route error:', error)
-    const errorMessage =
-      error instanceof Error ? error.message : 'An unknown error occurred'
     return new Response(
-      JSON.stringify({
-        error: errorMessage,
-        message: errorMessage,
-      }),
+      JSON.stringify({ error: (error as Error).message }),
       {
         status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       },
     )
   }

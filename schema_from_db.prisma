@@ -24,10 +24,10 @@ model TimerSession {
   endType              String?
   sessionId            String
   lastHeartbeat        DateTime  @default(now())
-  status               String    @default("RUNNING")
-  pauseNote            String?
   accumulatedElapsedMs Int       @default(0)
+  pauseNote            String?
   pausedAt             DateTime?
+  status               String    @default("RUNNING")
 }
 
 model ChatHistory {
@@ -45,12 +45,12 @@ model OKR {
   title         String
   description   String?
   targetDate    DateTime?
-  status        String       @default("ACTIVE") // ACTIVE, ACHIEVED, PAUSED
+  status        String       @default("ACTIVE")
   successMetric String?
   color         String?
-  initiatives   Initiative[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+  initiatives   Initiative[]
 }
 
 model Initiative {
@@ -58,13 +58,13 @@ model Initiative {
   title       String
   description String?
   okrId       Int
-  okr         OKR       @relation(fields: [okrId], references: [id])
-  status      String    @default("ACTIVE") // ACTIVE, ON_HOLD, ARCHIVED
+  status      String    @default("ACTIVE")
   targetDate  DateTime?
   color       String?
-  projects    Project[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  okr         OKR       @relation(fields: [okrId], references: [id])
+  projects    Project[]
 }
 
 model Project {
@@ -72,25 +72,25 @@ model Project {
   title              String
   description        String?
   initiativeId       Int?
-  initiative         Initiative?       @relation(fields: [initiativeId], references: [id])
   status             String            @default("ACTIVE")
   targetDate         DateTime?
   color              String?
   stakeholderGroupId Int?
-  stakeholderGroup   StakeholderGroup? @relation(fields: [stakeholderGroupId], references: [id])
-  tasks              Task[]
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
+  initiative         Initiative?       @relation(fields: [initiativeId], references: [id])
+  stakeholderGroup   StakeholderGroup? @relation(fields: [stakeholderGroupId], references: [id])
+  tasks              Task[]
 }
 
 model Task {
   id                 Int               @id @default(autoincrement())
   title              String
   description        String?
-  status             String            @default("TODO") // TODO, IN_PROGRESS, DONE, BLOCKED, DEFERRED
-  priority           String            @default("P2") // P0, P1, P2, P3
-  moscowClass        String?           @default("SHOULD") // MUST, SHOULD, COULD, WONT
-  effort             String?           @default("M") // XS, S, M, L, XL
+  status             String            @default("TODO")
+  priority           String            @default("P2")
+  moscowClass        String?           @default("SHOULD")
+  effort             String?           @default("M")
   estimatedPomodoros Int               @default(1)
   actualPomodoros    Int               @default(0)
   dueDate            DateTime?
@@ -98,20 +98,20 @@ model Task {
   completedAt        DateTime?
   tags               String[]
   projectId          Int?
-  project            Project?          @relation(fields: [projectId], references: [id])
   stakeholderGroupId Int?
-  stakeholderGroup   StakeholderGroup? @relation(fields: [stakeholderGroupId], references: [id])
-  taskType           String            @default("STRATEGIC") // STRATEGIC, KTLO, INTERRUPT, ADMIN
+  taskType           String            @default("STRATEGIC")
   aiGenerated        Boolean           @default(false)
   aiReasoning        String?
   sortOrder          Int               @default(0)
   parentTaskId       Int?
-  parentTask         Task?             @relation("SubTasks", fields: [parentTaskId], references: [id])
-  subTasks           Task[]            @relation("SubTasks")
   captureResolvedId  Int?              @unique
-  resolvedFrom       CaptureItem?      @relation(fields: [captureResolvedId], references: [id])
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
+  resolvedFrom       CaptureItem?      @relation(fields: [captureResolvedId], references: [id])
+  parentTask         Task?             @relation("SubTasks", fields: [parentTaskId], references: [id])
+  subTasks           Task[]            @relation("SubTasks")
+  project            Project?          @relation(fields: [projectId], references: [id])
+  stakeholderGroup   StakeholderGroup? @relation(fields: [stakeholderGroupId], references: [id])
 }
 
 model StakeholderGroup {
@@ -119,22 +119,22 @@ model StakeholderGroup {
   name         String
   description  String?
   color        String?
-  type         String    @default("ENGINEERING") // ENGINEERING, DATA, DESIGN, LEADERSHIP, EXTERNAL, PARTNER
+  type         String    @default("ENGINEERING")
   slackChannel String?
-  projects     Project[]
-  tasks        Task[]
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  projects     Project[]
+  tasks        Task[]
 }
 
 model DayPlan {
   id                    Int      @id @default(autoincrement())
   date                  DateTime @unique
   meetingHours          Float    @default(0)
-  energyLevel           String   @default("MEDIUM") // HIGH, MEDIUM, LOW
+  energyLevel           String   @default("MEDIUM")
   availableFocusMinutes Int      @default(0)
-  scheduledTaskIds      Json? // Array of task IDs
-  captureInboxIds       Json? // Array of CaptureItem IDs
+  scheduledTaskIds      Json?
+  captureInboxIds       Json?
   aiScheduleSummary     String?
   aiFocusAdvice         String?
   interruptLog          Json?
@@ -147,7 +147,9 @@ model CaptureItem {
   rawText        String
   processed      Boolean  @default(false)
   resolvedTaskId Int?
-  resolvedTask   Task?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  resolvedTask   Task?
 }
+
+

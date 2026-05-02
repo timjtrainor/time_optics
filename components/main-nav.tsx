@@ -11,7 +11,7 @@ export function MainNav() {
   const pathname = usePathname()
 
   return (
-    <div className="mr-4 hidden md:flex">
+    <div className="mr-4 hidden md:flex lg:hidden">
       <Link href="/" className="mr-4 flex items-center space-x-1 lg:mr-6">
         <Icons.logo className="size-5" />
         <span className="hidden font-black uppercase italic lg:inline-block">

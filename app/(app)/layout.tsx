@@ -1,5 +1,6 @@
 import { SiteFooter } from '@/components/site-footer'
 import { SiteHeader } from '@/components/site-header'
+import { Sidebar } from '@/components/sidebar'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -7,10 +8,11 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   return (
-    <div data-wrapper="" className="border-border/40 dark:border-border">
-      <div className="mx-auto w-full border-border/40 dark:border-border min-[1800px]:max-w-[1536px] min-[1800px]:border-x">
+    <div className="flex min-h-screen bg-background">
+      <Sidebar />
+      <div className="flex flex-1 flex-col">
         <SiteHeader />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">{children}</main>
         <SiteFooter />
       </div>
     </div>

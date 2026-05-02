@@ -1,34 +1,36 @@
 # TimeOptics
 
-TimeOptics is an AI-powered Pomodoro Planner designed to be privacy-focused, ADHD-friendly, and accessible. It helps you break down your tasks into manageable 25-minute chunks, ensuring you stay focused and productive.
+TimeOptics is an AI-powered productivity and planning application designed with ADHD-friendly principles. It helps you break down tasks, focus on one thing at a time, and manage your strategic and day-to-day operations seamlessly.
 
 ## Features
 
-- **AI-Powered Planning**: Uses Google Gemini 2.5 Flash (via OpenRouter) to break down vague goals into specific, actionable Pomodoro tasks.
-- **Local-First & Private**: All data is stored locally in your browser using IndexedDB (Dexie.js).
-- **Cross-Device Sync**: Supports syncing your plan across tabs and devices.
-- **ADHD-Friendly UI**: Clean, distraction-free interface designed to reduce cognitive load.
-- **Pomodoro Timer**: Integrated timer to keep you on track.
-- **Dark/Light Mode**: Fully themeable UI using Tailwind CSS and shadcn/ui.
+- **Kanban Task Board**: Manage tasks across 'To Do', 'In Progress', and 'Done' swimlanes.
+- **ADHD-Friendly Focus**: Features like 'One Thing Mode' and distraction-free UI to reduce cognitive load.
+- **Integrated Timer**: Full-screen capable timer integrated directly with your tasks to keep you on track.
+- **AI-Powered Planning**: Uses AI to break down vague goals into specific, actionable tasks.
+- **Robust Persistence**: Containerized PostgreSQL database for reliable, server-side data storage.
+- **Modern UI**: Fully themeable, responsive interface built with Tailwind CSS, Framer Motion, and shadcn/ui.
 
 ## Tech Stack
 
 - **Framework**: Next.js 15 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS v4, shadcn/ui
+- **Database**: PostgreSQL 18.3, Prisma ORM
+- **Containerization**: Docker, Docker Compose
 - **State Management**: Zustand
-- **Database**: Dexie.js (IndexedDB)
-- **AI**: Vercel AI SDK 5.0, OpenRouter
+- **AI**: Vercel AI SDK, OpenRouter
 - **Package Manager**: Bun
 
 ## Getting Started
 
 ### Prerequisites
 
+- [Docker](https://www.docker.com/) and Docker Compose installed
 - [Bun](https://bun.sh/) installed
 - An [OpenRouter](https://openrouter.ai/) API Key
 
-### Installation
+### Installation & Setup
 
 1. Clone the repository:
    ```bash
@@ -41,21 +43,34 @@ TimeOptics is an AI-powered Pomodoro Planner designed to be privacy-focused, ADH
    bun install
    ```
 
-3. Set up environment variables:
-   You can create a `.env.local` file, but the app allows you to enter your OpenRouter API Key directly in the Settings UI for a completely client-side experience.
-   
-   If you want to provide a default key for development:
+3. Start the environment:
+   We use Docker Compose to manage the PostgreSQL database and the Next.js application container.
    ```bash
-   # .env.local
+   bun docker:start
+   ```
+   *Note: This script will automatically create a `.env` template if one doesn't exist, start the containers, wait for the database to be healthy, and run Prisma migrations.*
+
+4. Configure your AI provider:
+   Open the `.env` file created in the root directory and add your OpenRouter API key:
+   ```env
    OPENROUTER_API_KEY=your_key_here
    ```
+   *Alternatively, you can provide the API key directly in the application's Settings UI.*
 
-4. Run the development server:
-   ```bash
-   bun dev
-   ```
+5. Access the application:
+   Open [http://localhost:3000](http://localhost:3000) (or the port specified during startup, e.g., 3001 if 3000 is occupied) in your browser.
 
-5. Open [http://localhost:3000](http://localhost:3000) with your browser.
+## Development
+
+To stop the environment:
+```bash
+docker compose down
+```
+
+To run the development server locally (outside of the app container, requires the PostgreSQL database container to be running):
+```bash
+bun dev
+```
 
 ## License
 

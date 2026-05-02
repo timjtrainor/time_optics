@@ -170,7 +170,7 @@ export function ActiveSession() {
   // Render a full-screen fixed overlay using a portal
   return typeof document !== 'undefined' ? createPortal(
     <div className={cn(
-      "fixed inset-0 z-40 flex flex-col items-center justify-center p-8 backdrop-blur-md transition-colors duration-500",
+      "fixed inset-0 z-[100] flex flex-col items-center justify-center p-8 backdrop-blur-md transition-colors duration-500",
       isWork ? "bg-red-500/5 dark:bg-red-950/20" : "bg-blue-500/5 dark:bg-blue-950/20"
     )}>
       {/* Minimize button (only when paused) */}

@@ -8,21 +8,21 @@ echo "🚀 Starting Sidejot environment..."
 # Check if .env exists, if not create a template
 if [ ! -f .env ]; then
   echo "📝 Creating .env from template..."
-  echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/sidejot?schema=public" > .env
-  echo "POSTGRES_USER=postgres" >> .env
-  echo "POSTGRES_PASSWORD=postgres" >> .env
-  echo "POSTGRES_DB=sidejot" >> .env
+  echo "DATABASE_URL=postgresql://time_optics:time_optics@db:5432/time_optics?schema=public" > .env
+  echo "POSTGRES_USER=time_optics" >> .env
+  echo "POSTGRES_PASSWORD=time_optics" >> .env
+  echo "POSTGRES_DB=time_optics" >> .env
   echo "OPENROUTER_API_KEY=your_key_here" >> .env
 fi
 
-# Start containers
+# Start containers with build to ensure schema is sync'd
 if command -v docker-compose &> /dev/null; then
   DOCKER_COMPOSE="docker-compose"
 else
   DOCKER_COMPOSE="docker compose"
 fi
 
-$DOCKER_COMPOSE up -d
+$DOCKER_COMPOSE up -d --build
 
 echo "⏳ Waiting for database to be ready..."
 # Wait for DB healthcheck using the service name instead of container name
@@ -34,6 +34,6 @@ echo ""
 
 echo "🔄 Running database migrations..."
 # Use the service name 'app' instead of hardcoded container name
-$DOCKER_COMPOSE exec app bunx prisma db push
+$DOCKER_COMPOSE exec app bunx prisma db push --accept-data-loss
 
 echo "✅ Sidejot is ready! Open http://localhost:3000"

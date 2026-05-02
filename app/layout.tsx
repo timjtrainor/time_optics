@@ -42,11 +42,11 @@ export const metadata: Metadata = {
   ],
   authors: [
     {
-      name: 'Sidejot',
-      url: 'https://github.com/sidejot',
+      name: 'TimeOptics',
+      url: 'https://github.com/timeoptics',
     },
   ],
-  creator: 'Sidejot',
+  creator: 'TimeOptics',
   openGraph: {
     type: 'website',
     locale: 'en_US',
@@ -103,7 +103,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
             sizes="180x180"
             href="/_static/favicons/apple-touch-icon.png"
           />
-          <meta name="apple-mobile-web-app-title" content="Sidejot" />
+          <meta name="apple-mobile-web-app-title" content="TimeOptics" />
           <link rel="manifest" href="/_static/favicons/site.webmanifest" />
           <script
             dangerouslySetInnerHTML={{

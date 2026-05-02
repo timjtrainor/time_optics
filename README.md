@@ -1,6 +1,6 @@
-# Sidejot
+# TimeOptics
 
-Sidejot is an AI-powered Pomodoro Planner designed to be privacy-focused, ADHD-friendly, and accessible. It helps you break down your tasks into manageable 25-minute chunks, ensuring you stay focused and productive.
+TimeOptics is an AI-powered Pomodoro Planner designed to be privacy-focused, ADHD-friendly, and accessible. It helps you break down your tasks into manageable 25-minute chunks, ensuring you stay focused and productive.
 
 ## Features
 
@@ -32,8 +32,8 @@ Sidejot is an AI-powered Pomodoro Planner designed to be privacy-focused, ADHD-f
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/sidejot.git
-   cd sidejot
+   git clone https://github.com/yourusername/time_optics.git
+   cd time_optics
    ```
 
 2. Install dependencies:

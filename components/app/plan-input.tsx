@@ -2,11 +2,11 @@
 import { generatePlanSchema } from '@/app/api/tasks/generate/schema'
 import { Button } from '@/components/ui/button'
 import { useDebouncedCallback } from '@/hooks/use-debounce'
-import { TimerEndType, TimerType, db } from '@/lib/db'
+import { useStore } from '@/lib/store'
+import { TimerEndType, TimerType } from '@/lib/types'
 import { getTimeOfDay, getDeviceType } from '@/lib/utils'
 import { experimental_useObject as useObject } from '@ai-sdk/react'
 import { differenceInMinutes, setHours, setMinutes } from 'date-fns'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowUp,
@@ -26,11 +26,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 import { PlanHistory } from './plan-history'
 
 import { fetchWithKey } from '@/lib/fetch'
-import { useAtom } from 'jotai'
-import { atomWithStorage } from 'jotai/utils'
-export const lastGeneratedPlanAtom = atomWithStorage<
-  typeof generatePlanSchema._output | null
->('lastGeneratedPlan', null)
+// Removed atomWithStorage to ensure data is pulled from DB only
 
 interface Task {
   content: string
@@ -39,9 +35,24 @@ interface Task {
 }
 
 export function PlanInput() {
-  const [lastGeneratedPlan, setLastGeneratedPlan] = useAtom(
-    lastGeneratedPlanAtom,
-  )
+  const { 
+    plan, 
+    fetchPlan, 
+    updatePlan, 
+    saveHistory, 
+    history,
+    fetchHistory,
+    activeSession, 
+    fetchActiveSession,
+    startTimer,
+    completeTimer
+  } = useStore()
+
+  // Use the latest history entry as the "last generated plan"
+  const lastGeneratedPlan = useMemo(() => {
+    const entry = history.find(h => h.type === 'task-generation')
+    return entry ? (entry.output as typeof generatePlanSchema._output) : null
+  }, [history])
 
   const { object, isLoading, error, submit } = useObject({
     api: '/api/tasks/generate',
@@ -50,9 +61,7 @@ export function PlanInput() {
     fetch: fetchWithKey,
     onFinish: async (result) => {
       if (result.object) {
-        setLastGeneratedPlan(result.object)
-
-        await db.saveChatHistory('task-generation', inputValue, result.object, {
+        await saveHistory('task-generation', inputValue, result.object, 'Task Generation', {
           timeOfDay: getTimeOfDay(new Date()),
           deviceType: getDeviceType(),
         })
@@ -64,16 +73,19 @@ export function PlanInput() {
       toast.error('Something went wrong')
     },
   })
-  const today = new Date()
+  
+  const today = useMemo(() => new Date(), [])
 
-  const plan = useLiveQuery(async () => {
-    return db.getPlan(today)
-  })
+  useEffect(() => {
+    fetchPlan(today)
+    fetchActiveSession()
+    fetchHistory('task-generation', 1)
+  }, [fetchPlan, fetchActiveSession, fetchHistory, today])
 
   const [inputValue, setInputValue] = useState(plan?.content ?? '')
 
   const debouncedUpdate = useDebouncedCallback(async (content: string) => {
-    await db.updatePlan(today, content)
+    await updatePlan(today, content)
   }, 500)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -129,25 +141,29 @@ export function PlanInput() {
   }
 
   const tasks = useMemo(
-    () =>
-      object?.tasks?.filter(
+    () => {
+      const source = object?.tasks?.length ? object.tasks : lastGeneratedPlan?.tasks
+      return source?.filter(
         (task): task is Task => task !== undefined && !!task?.content,
-      ) ?? [],
-    [object?.tasks],
+      ) ?? []
+    },
+    [object?.tasks, lastGeneratedPlan?.tasks],
   )
 
   const backlog = useMemo(
-    () =>
-      object?.backlog?.filter(
+    () => {
+      const source = object?.backlog?.length ? object.backlog : lastGeneratedPlan?.backlog
+      return source?.filter(
         (task): task is Task => task !== undefined && !!task?.content,
-      ) ?? [],
-    [object?.backlog],
+      ) ?? []
+    },
+    [object?.backlog, lastGeneratedPlan?.backlog],
   )
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <h1 className="text-4xl font-bold text-center mb-6">
-        What do you want to get done today?
+        What do you need to break into pomodoros?
       </h1>
 
       <div className="relative mb-4">
@@ -168,7 +184,7 @@ export function PlanInput() {
           <Textarea
             value={inputValue}
             onChange={handleInputChange}
-            placeholder="Ask Sidejot a question..."
+            placeholder="Ask TimeOptics a question..."
             className="overflow-auto pb-1.5 text-sm placeholder:text-gray-500 resize-none"
           />
 
@@ -206,7 +222,9 @@ export function PlanInput() {
         </div>
       </div>
 
-      {object?.reasoning && <Reasoning reasoning={object.reasoning} />}
+      {(object?.reasoning || lastGeneratedPlan?.reasoning) && (
+        <Reasoning reasoning={object?.reasoning || lastGeneratedPlan?.reasoning || ''} />
+      )}
 
       {tasks.length > 0 && (
         <div className="mt-4">
@@ -221,7 +239,9 @@ export function PlanInput() {
         </div>
       )}
 
-      {object?.notes && <Notes notes={object.notes} />}
+      {(object?.notes || lastGeneratedPlan?.notes) && (
+        <Notes notes={object?.notes || lastGeneratedPlan?.notes || ''} />
+      )}
 
       {!tasks.length && <Suggestions />}
     </div>
@@ -239,15 +259,18 @@ const TaskList = ({ tasks }: { tasks: Task[] }) => {
 }
 
 const TaskCard = ({ task }: { task: Task }) => {
+  const { startTimer, completeTimer, activeSession } = useStore()
+
   const handleStartDraftTask = async () => {
-    await db.startTimerSession(task.content, TimerType.WORK)
+    // Generate a unique session ID for the new session
+    const sessionId = `${Math.random().toString(36).substring(7)}`
+    await startTimer(task.content, TimerType.WORK, sessionId)
   }
 
   const handleStop = async () => {
-    await db.completeTimerSession(task.content, TimerEndType.INTERRUPTED)
+    await completeTimer(activeSession?.sessionId || '', TimerEndType.INTERRUPTED)
   }
 
-  const activeSession = useLiveQuery(() => db.getActiveSession())
   const isActive = activeSession?.content === task.content
 
   return (

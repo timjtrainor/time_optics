@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { TimePicker } from '@/components/ui/time-picker'
 import { AI_CONFIG } from '@/lib/config'
-import { db } from '@/lib/db'
+import { useStore } from '@/lib/store'
 import { Settings2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -21,6 +21,7 @@ export function Settings({
 }: {
   setIsOpen: (open: boolean) => void
 }) {
+  const { plan, fetchPlan, updatePlan } = useStore()
   const [startTime, setStartTime] = useState('09:00')
   const [endTime, setEndTime] = useState('17:00')
   const [openRouterKey, setOpenRouterKey] = useState('')
@@ -35,44 +36,41 @@ export function Settings({
   }
 
   useEffect(() => {
-    async function loadPreferences() {
-      const today = new Date()
-      const plan = await db.getPlan(today)
-      if (plan?.preferences) {
-        const {
-          workingHours,
-          openRouterKey: savedKey,
-          model: savedModel,
-        } = plan.preferences
-        if (workingHours) {
-          const start = workingHours.start
-          const end = workingHours.end
-          setStartTime(formatTime(start))
-          setEndTime(formatTime(end))
-        }
-        if (savedKey) {
-          setOpenRouterKey(savedKey)
-        }
-        if (savedModel) {
-          setModel(savedModel)
-        }
+    const today = new Date()
+    fetchPlan(today)
+  }, [fetchPlan])
+
+  useEffect(() => {
+    if (plan?.preferences) {
+      const {
+        workingHours,
+        openRouterKey: savedKey,
+        model: savedModel,
+      } = plan.preferences
+      if (workingHours) {
+        const start = workingHours.start
+        const end = workingHours.end
+        setStartTime(formatTime(start))
+        setEndTime(formatTime(end))
+      }
+      if (savedKey) {
+        setOpenRouterKey(savedKey)
+      }
+      if (savedModel) {
+        setModel(savedModel)
       }
     }
-    loadPreferences()
-  }, [])
+  }, [plan])
 
   const handleSave = async () => {
     const today = new Date()
-    const plan = await db.getOrCreatePlan(today)
-    await db.plans.update(plan.id!, {
-      preferences: {
-        workingHours: {
-          start: parseTime(startTime),
-          end: parseTime(endTime),
-        },
-        openRouterKey,
-        model,
+    await updatePlan(today, plan?.content || '', {
+      workingHours: {
+        start: parseTime(startTime),
+        end: parseTime(endTime),
       },
+      openRouterKey,
+      model,
     })
     setIsOpen(false)
   }

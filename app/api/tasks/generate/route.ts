@@ -1,19 +1,32 @@
 import { getOpenRouter } from '@/lib/ai'
 import { AI_CONFIG } from '@/lib/config'
+import prisma from '@/lib/prisma'
 import { streamObject, createTextStreamResponse } from 'ai'
+import { startOfDay } from 'date-fns'
 import { generatePlanSchema } from './schema'
 
 export async function POST(req: Request) {
   try {
     const input = await req.json()
-    const apiKey = req.headers.get('x-openai-key')
-    const model = req.headers.get('x-model') || AI_CONFIG.defaultModel
+    let apiKey = req.headers.get('x-openai-key')
+    let model = req.headers.get('x-model')
 
     if (!input || !input.content) {
       return new Response('Plan content is required', { status: 400 })
     }
 
-    // Check if API key is available
+    // If not in headers, try to get from today's plan in DB
+    if (!apiKey || !model) {
+      const today = startOfDay(new Date())
+      const plan = await prisma.plan.findUnique({ where: { date: today } })
+      if (plan?.preferences) {
+        const prefs = plan.preferences as any
+        if (!apiKey) apiKey = prefs.openRouterKey
+        if (!model) model = prefs.model
+      }
+    }
+
+    model = model || AI_CONFIG.defaultModel
     const finalApiKey = apiKey || process.env.OPENROUTER_API_KEY
     if (!finalApiKey) {
       return new Response(

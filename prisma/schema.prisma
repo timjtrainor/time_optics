@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Plan {
+  id          Int      @id @default(autoincrement())
+  content     String
+  date        DateTime @unique
+  lastUpdated DateTime @default(now())
+  preferences Json?
+}
+
+model TimerSession {
+  id            Int       @id @default(autoincrement())
+  type          String
+  content       String?
+  startTime     DateTime  @default(now())
+  endTime       DateTime?
+  duration      Int
+  endType       String?
+  sessionId            String
+  lastHeartbeat        DateTime  @default(now())
+  status               String    @default("RUNNING")
+  pauseNote            String?
+  accumulatedElapsedMs Int       @default(0)
+  pausedAt             DateTime?
+}
+
+model ChatHistory {
+  id        Int      @id @default(autoincrement())
+  type      String
+  timestamp DateTime @default(now())
+  title     String
+  input     Json
+  output    Json
+  metadata  Json?
+}

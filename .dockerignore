@@ -1,0 +1,46 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.*
+
+# Testing
+coverage
+
+# Next.js
+.next/
+out/
+
+# Production
+build
+
+# Misc
+.DS_Store
+*.pem
+npm-debug.log*
+
+# Environment files
+.env*
+!.env.example
+
+# Local database data
+pgdata/
+
+# Version control
+.git
+.gitignore
+
+# Documentation and config
+README.md
+LICENSE.md
+CONTRIBUTING.md
+docker-compose.yml
+Dockerfile
+.vscode
+.github
+.changeset
+.cursorrules
+.prettierrc
+.prettierignore
+eslint.config.mjs
+postcss.config.mjs
+tailwind.config.ts

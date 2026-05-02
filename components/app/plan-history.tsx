@@ -6,10 +6,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { db } from '@/lib/db'
+import { useStore } from '@/lib/store'
 import { formatDistanceToNow } from 'date-fns'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { History } from 'lucide-react'
+import { useEffect } from 'react'
 import { toast } from 'sonner'
 
 interface PlanHistoryProps {
@@ -17,9 +17,11 @@ interface PlanHistoryProps {
 }
 
 export function PlanHistory({ onSelect }: PlanHistoryProps) {
-  const history = useLiveQuery(async () => {
-    return db.getChatHistory('task-generation', 5)
-  })
+  const { history, fetchHistory } = useStore()
+
+  useEffect(() => {
+    fetchHistory('task-generation', 5)
+  }, [fetchHistory])
 
   return (
     <DropdownMenu>

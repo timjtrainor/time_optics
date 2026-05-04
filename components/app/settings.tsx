@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { AgentProvider, PlanPreferences } from '@/lib/types'
+import { AgentProvider, PlanPreferences, AgentConfig } from '@/lib/types'
 
 export function Settings({
   setIsOpen,
@@ -35,11 +35,16 @@ export function Settings({
   const [endTime, setEndTime] = useState('17:00')
   const [openRouterKey, setOpenRouterKey] = useState('')
   const [ollamaEndpoint, setOllamaEndpoint] = useState<string>(AI_CONFIG.ollama.defaultEndpoint)
-  const [model, setModel] = useState<string>(AI_CONFIG.defaultModel)
-  const [agents, setAgents] = useState<Record<string, { provider: AgentProvider; model: string }>>({
-    scheduler: { provider: AgentProvider.OPENROUTER, model: AI_CONFIG.defaultModel },
-    prioritizer: { provider: AgentProvider.OPENROUTER, model: AI_CONFIG.defaultModel },
-    coach: { provider: AgentProvider.OPENROUTER, model: AI_CONFIG.defaultModel },
+  
+  const [defaultProvider, setDefaultProvider] = useState<AgentProvider>(AgentProvider.OPENROUTER)
+  const [defaultModel, setDefaultModel] = useState<string>(AI_CONFIG.defaultModel)
+  
+  const [agents, setAgents] = useState<Record<string, AgentConfig>>(() => {
+    const initial: Record<string, AgentConfig> = {}
+    Object.keys(AI_CONFIG.agents).forEach(id => {
+      initial[id] = {}
+    })
+    return initial
   })
 
   const formatTime = (hour: number) => {
@@ -62,7 +67,8 @@ export function Settings({
         workingHours,
         openRouterKey: savedKey,
         ollamaEndpoint: savedOllama,
-        model: savedModel,
+        defaultProvider: savedDefaultProvider,
+        defaultModel: savedDefaultModel,
         agents: savedAgents,
       } = prefs
       if (workingHours) {
@@ -71,8 +77,15 @@ export function Settings({
       }
       if (savedKey) setOpenRouterKey(savedKey)
       if (savedOllama) setOllamaEndpoint(savedOllama)
-      if (savedModel) setModel(savedModel)
-      if (savedAgents) setAgents(savedAgents)
+      if (savedDefaultProvider) setDefaultProvider(savedDefaultProvider)
+      if (savedDefaultModel) setDefaultModel(savedDefaultModel)
+      if (savedAgents) {
+        const merged: Record<string, AgentConfig> = {}
+        Object.keys(AI_CONFIG.agents).forEach(id => {
+          merged[id] = savedAgents[id] || {}
+        })
+        setAgents(merged)
+      }
     }
   }, [plan])
 
@@ -85,13 +98,14 @@ export function Settings({
       },
       openRouterKey,
       ollamaEndpoint,
-      model,
+      defaultProvider,
+      defaultModel,
       agents,
     })
     setIsOpen(false)
   }
 
-  const updateAgent = (agentId: string, updates: Partial<{ provider: AgentProvider; model: string }>) => {
+  const updateAgent = (agentId: string, updates: Partial<AgentConfig>) => {
     setAgents(prev => ({
       ...prev,
       [agentId]: { ...prev[agentId], ...updates }
@@ -119,6 +133,32 @@ export function Settings({
         <Label className="text-sm font-semibold text-primary">AI Providers</Label>
         <div className="grid gap-4 p-4 border rounded-lg bg-muted/30">
           <div className="grid gap-2">
+            <Label>Default Provider</Label>
+            <Select 
+              value={defaultProvider} 
+              onValueChange={(val) => setDefaultProvider(val as AgentProvider)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={AgentProvider.OPENROUTER}>OpenRouter</SelectItem>
+                <SelectItem value={AgentProvider.OLLAMA}>Ollama</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="default-model">Default Model</Label>
+            <Input
+              id="default-model"
+              type="text"
+              value={defaultModel}
+              onChange={(e) => setDefaultModel(e.target.value)}
+              placeholder="e.g. google/gemini-2.0-flash-001 or llama3"
+              className="font-mono"
+            />
+          </div>
+          <div className="grid gap-2">
             <Label htmlFor="openrouter-key">OpenRouter API Key</Label>
             <Input
               id="openrouter-key"
@@ -144,32 +184,33 @@ export function Settings({
       </div>
 
       <div className="grid gap-4 border-t pt-4">
-        <Label className="text-sm font-semibold text-primary">Agent Personas</Label>
+        <Label className="text-sm font-semibold text-primary">Agent Personas Overrides</Label>
         {Object.entries(AI_CONFIG.agents).map(([id, agent]) => (
           <div key={id} className="grid gap-3 p-4 border rounded-lg bg-card">
             <div className="flex items-center justify-between">
               <Label className="font-medium">{agent.name}</Label>
               <Select 
-                value={agents[id]?.provider} 
-                onValueChange={(val) => updateAgent(id, { provider: val as AgentProvider })}
+                value={agents[id]?.provider || 'default'} 
+                onValueChange={(val) => updateAgent(id, { provider: val === 'default' ? undefined : val as AgentProvider })}
               >
                 <SelectTrigger className="w-[140px] h-8">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="default">Default</SelectItem>
                   <SelectItem value={AgentProvider.OPENROUTER}>OpenRouter</SelectItem>
                   <SelectItem value={AgentProvider.OLLAMA}>Ollama</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor={`${id}-model`} className="text-xs text-muted-foreground">Model</Label>
+              <Label htmlFor={`${id}-model`} className="text-xs text-muted-foreground">Model Override</Label>
               <Input
                 id={`${id}-model`}
-                value={agents[id]?.model}
-                onChange={(e) => updateAgent(id, { model: e.target.value })}
+                value={agents[id]?.model || ''}
+                onChange={(e) => updateAgent(id, { model: e.target.value || undefined })}
                 className="h-8 font-mono text-xs"
-                placeholder={agents[id]?.provider === AgentProvider.OLLAMA ? 'llama3' : 'google/gemini-2.0-flash-001'}
+                placeholder={`Leave blank to use default`}
               />
             </div>
           </div>

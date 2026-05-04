@@ -13,9 +13,6 @@ export async function PATCH(
       where: { id },
       data: {
         ...data,
-        dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
-        scheduledDate: data.scheduledDate ? new Date(data.scheduledDate) : undefined,
-        completedAt: data.status === 'DONE' ? new Date() : (data.status ? null : undefined),
       }
     })
     return NextResponse.json(task)

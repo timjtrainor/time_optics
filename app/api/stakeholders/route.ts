@@ -13,19 +13,19 @@ export async function GET() {
 
     // Calculate time-allocation stats per group
     const stats = groups.map(group => {
-      const totalMinutes = group.tasks.reduce((acc, t) => acc + (t.actualPomodoros * 25), 0)
-      const ktloTasks = group.tasks.filter(t => t.taskType === 'KTLO')
-      const strategicTasks = group.tasks.filter(t => t.taskType === 'STRATEGIC')
+      const totalMinutes = group.tasks.reduce((acc, t) => acc + t.actualMinutes, 0)
+      const bucketTasks = group.tasks.filter(t => t.impact === 'BUCKET')
+      const needleTasks = group.tasks.filter(t => t.impact === 'NEEDLE')
       
-      const ktloMinutes = ktloTasks.reduce((acc, t) => acc + (t.actualPomodoros * 25), 0)
-      const strategicMinutes = strategicTasks.reduce((acc, t) => acc + (t.actualPomodoros * 25), 0)
+      const bucketMinutes = bucketTasks.reduce((acc, t) => acc + t.actualMinutes, 0)
+      const needleMinutes = needleTasks.reduce((acc, t) => acc + t.actualMinutes, 0)
 
       return {
         ...group,
         stats: {
           totalMinutes,
-          ktloPercent: totalMinutes > 0 ? Math.round((ktloMinutes / totalMinutes) * 100) : 0,
-          strategicPercent: totalMinutes > 0 ? Math.round((strategicMinutes / totalMinutes) * 100) : 0,
+          bucketPercent: totalMinutes > 0 ? Math.round((bucketMinutes / totalMinutes) * 100) : 0,
+          needlePercent: totalMinutes > 0 ? Math.round((needleMinutes / totalMinutes) * 100) : 0,
           activeTaskCount: group.tasks.filter(t => t.status !== 'DONE').length
         }
       }

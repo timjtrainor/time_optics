@@ -19,8 +19,8 @@ export function getOllama(baseUrl?: string | null) {
 
 export function getAgentModel(agentId: string, preferences: PlanPreferences | null): LanguageModel {
   const agentConfig = preferences?.agents?.[agentId]
-  const provider = agentConfig?.provider || (AI_CONFIG.agents as any)[agentId]?.defaultProvider || AgentProvider.OPENROUTER
-  const model = agentConfig?.model || (provider === AgentProvider.OLLAMA ? AI_CONFIG.ollama.defaultModel : AI_CONFIG.defaultModel)
+  const provider = agentConfig?.provider || preferences?.defaultProvider || (AI_CONFIG.agents as any)[agentId]?.defaultProvider || AgentProvider.OPENROUTER
+  const model = agentConfig?.model || preferences?.defaultModel || (provider === AgentProvider.OLLAMA ? AI_CONFIG.ollama.defaultModel : AI_CONFIG.defaultModel)
 
   if (provider === AgentProvider.OLLAMA) {
     return getOllama(preferences?.ollamaEndpoint).chat(model) as unknown as LanguageModel

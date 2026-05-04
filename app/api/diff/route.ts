@@ -1,9 +1,8 @@
-import { getOpenRouter } from '@/lib/ai'
-import { AI_CONFIG } from '@/lib/config'
+import { getAgentModel } from '@/lib/ai'
 import { generateText } from 'ai'
-import { format } from 'date-fns'
 import { diffWords } from 'diff'
 import { NextResponse } from 'next/server'
+import { PROMPTS } from '@/lib/prompts'
 
 async function getTitle(
   type: string,
@@ -11,15 +10,12 @@ async function getTitle(
   apiKey?: string,
   model?: string,
 ) {
-  const openrouter = getOpenRouter(apiKey)
+  const prefs = { openRouterKey: apiKey, defaultModel: model }
+  const agentModel = getAgentModel('diff', prefs as any)
   const { text } = await generateText({
-    model: openrouter.chat(model || AI_CONFIG.defaultModel),
-    system: `Today is ${format(new Date(), 'MMMM d, yyyy')}. Your task is to write a brief summary of the current ${type}.`,
-    prompt: `
-# Current ${type}
-${current}
-
-Return a single, concise sentence summary of the current ${type} (max 5 words), nothing else.`,
+    model: agentModel,
+    system: PROMPTS.getDiffTitleSystem(type),
+    prompt: PROMPTS.getDiffTitlePrompt(type, current),
   })
   return text.trim()
 }
@@ -28,8 +24,7 @@ export async function POST(request: Request) {
   try {
     const { current, previous, type } = await request.json()
     const apiKey = request.headers.get('x-openai-key')
-    const model = request.headers.get('x-model') || AI_CONFIG.defaultModel
-    const openrouter = getOpenRouter(apiKey)
+    const model = request.headers.get('x-model') || undefined
 
     // Skip AI call if there's no previous input to compare
     if (!previous || !current) {
@@ -73,26 +68,13 @@ export async function POST(request: Request) {
       })
     }
 
-    const prompt = `Based on the following diff, write a single sentence title for the current ${type}:
-
-# Previous
-${previous}
-
-# Current
-${current}
-
-# Changes
-${added.length > 0 ? `## Added\n${added.join('\n')}` : ''}
-${removed.length > 0 ? `## Removed\n${removed.join('\n')}` : ''}
-
-# Task
-Return a single, concise sentence summary of the changes (max 5 words), nothing else. If no changes, return a single sentence summary (max 5 words) of the current ${type}.
-`
+    const prefs = { openRouterKey: apiKey, defaultModel: model }
+    const agentModel = getAgentModel('diff', prefs as any)
 
     const { text } = await generateText({
-      model: openrouter.chat(model),
-      system: `Today is ${format(new Date(), 'MMMM d, yyyy')}. Your task is to write a brief label for the current ${type}.`,
-      prompt,
+      model: agentModel,
+      system: PROMPTS.getDiffLabelSystem(type),
+      prompt: PROMPTS.getDiffLabelPrompt(type, previous, current, added, removed),
     })
     const summary = text.trim()
 

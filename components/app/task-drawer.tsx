@@ -24,9 +24,7 @@ import {
 import { 
   Task, 
   TaskStatus, 
-  TaskPriority, 
-  TaskType, 
-  MoscowClass, 
+  TaskImpact,
   EffortSize 
 } from '@/lib/types'
 import { toast } from 'sonner'
@@ -83,16 +81,16 @@ export function TaskDrawer({ task, open, onOpenChange }: TaskDrawerProps) {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="context">Context / Notes</Label>
               <Textarea 
-                id="description" 
-                value={formData.description || ''} 
-                onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                id="context" 
+                value={formData.context || ''} 
+                onChange={e => setFormData(prev => ({ ...prev, context: e.target.value }))}
                 rows={3}
               />
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>Status</Label>
                 <Select 
@@ -107,70 +105,33 @@ export function TaskDrawer({ task, open, onOpenChange }: TaskDrawerProps) {
               </div>
 
               <div className="grid gap-2">
-                <Label>Priority</Label>
+                <Label>Size</Label>
                 <Select 
-                  value={formData.priority} 
-                  onValueChange={val => setFormData(prev => ({ ...prev, priority: val as TaskPriority }))}
+                  value={formData.size} 
+                  onValueChange={val => setFormData(prev => ({ ...prev, size: val as EffortSize }))}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {Object.values(TaskPriority).map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    {Object.values(EffortSize).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label>MoSCoW</Label>
-                <Select 
-                  value={formData.moscowClass} 
-                  onValueChange={val => setFormData(prev => ({ ...prev, moscowClass: val as MoscowClass }))}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.values(MoscowClass).map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="grid gap-2">
-                <Label>Effort (T-Shirt)</Label>
-                <Select 
-                  value={formData.effort} 
-                  onValueChange={val => setFormData(prev => ({ ...prev, effort: val as EffortSize }))}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.values(EffortSize).map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Type</Label>
-                <Select 
-                  value={formData.taskType} 
-                  onValueChange={val => setFormData(prev => ({ ...prev, taskType: val as TaskType }))}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.values(TaskType).map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Pomodoros</Label>
-                <Input 
-                  type="number" 
-                  value={formData.estimatedPomodoros || 1} 
-                  onChange={e => setFormData(prev => ({ ...prev, estimatedPomodoros: parseInt(e.target.value) }))}
-                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Impact</Label>
+                <Select 
+                  value={formData.impact} 
+                  onValueChange={val => setFormData(prev => ({ ...prev, impact: val as TaskImpact }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.values(TaskImpact).map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid gap-2">
                 <Label>Project</Label>
                 <Select 
@@ -183,19 +144,19 @@ export function TaskDrawer({ task, open, onOpenChange }: TaskDrawerProps) {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
-              <div className="grid gap-2">
-                <Label>Stakeholder</Label>
-                <Select 
-                  value={formData.stakeholderGroupId?.toString()} 
-                  onValueChange={val => setFormData(prev => ({ ...prev, stakeholderGroupId: parseInt(val) }))}
-                >
-                  <SelectTrigger><SelectValue placeholder="Select group" /></SelectTrigger>
-                  <SelectContent>
-                    {stakeholderGroups.map(g => <SelectItem key={g.id} value={g.id.toString()}>{g.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="grid gap-2">
+              <Label>Stakeholder Group</Label>
+              <Select 
+                value={formData.stakeholderGroupId?.toString()} 
+                onValueChange={val => setFormData(prev => ({ ...prev, stakeholderGroupId: parseInt(val) }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Select group" /></SelectTrigger>
+                <SelectContent>
+                  {stakeholderGroups.map(g => <SelectItem key={g.id} value={g.id.toString()}>{g.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

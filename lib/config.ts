@@ -23,5 +23,20 @@ export const AI_CONFIG = {
       name: '🧠 Focus Coach',
       defaultProvider: 'openrouter',
     },
+    unblocker: {
+      id: 'unblocker',
+      name: '🛡️ Unblocker',
+      defaultProvider: 'openrouter',
+    },
+    'promo-scribe': {
+      id: 'promo-scribe',
+      name: '📝 Promo Scribe',
+      defaultProvider: 'openrouter',
+    },
+    'scope-slicer': {
+      id: 'scope-slicer',
+      name: '🔪 Scope Slicer',
+      defaultProvider: 'openrouter',
+    },
   }
 } as const

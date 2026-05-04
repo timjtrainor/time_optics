@@ -13,7 +13,9 @@ import {
   Settings,
   Zap,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  TrendingUp,
+  Brain
 } from 'lucide-react'
 import { siteConfig } from '@/config/site'
 import { Button } from './ui/button'
@@ -39,14 +41,19 @@ const sidebarItems = [
     title: "Strategic Planning",
     items: [
       {
+        title: "Sprint Planning",
+        href: "/planning",
+        icon: Brain,
+      },
+      {
         title: "Task Board",
         href: "/tasks",
         icon: CheckSquare,
       },
       {
-        title: "Roadmap (OKRs)",
+        title: "Strategic Priorities",
         href: "/goals",
-        icon: Target,
+        icon: TrendingUp,
       },
       {
         title: "Stakeholders",

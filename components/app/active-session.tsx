@@ -3,15 +3,19 @@
 import { useStore } from '@/lib/store'
 import { TimerEndType, TimerType } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { PauseIcon, PlayIcon, Square, Plus, TargetIcon, CoffeeIcon, X } from 'lucide-react'
+import { Square, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '../ui/button'
-import { Progress } from '../ui/progress'
 import { TimerDial } from './timer-dial'
 import { PauseModal } from './pause-modal'
 import { createPortal } from 'react-dom'
+import { HyperfocusInterceptor } from './hyperfocus-interceptor'
+import { UnblockerModal } from './unblocker-modal'
+import { MinimizedTimer } from './minimized-timer'
+import { TimerControls } from './timer-controls'
 
 const setFavicon = (emoji: string) => {
+  if (typeof document === 'undefined') return
   const canvas = document.createElement('canvas')
   canvas.height = 32
   canvas.width = 32
@@ -38,10 +42,15 @@ export function ActiveSession() {
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false)
   const [currentElapsedMs, setCurrentElapsedMs] = useState(0)
   const [isMinimized, setIsMinimized] = useState(false)
+  const [isHardStopOpen, setIsHardStopOpen] = useState(false)
+  const [hasFiredHardStop, setHasFiredHardStop] = useState(false)
+  const [isUnblockerOpen, setIsUnblockerOpen] = useState(false)
 
   // Auto-maximize when a new session starts
   useEffect(() => {
     setIsMinimized(false)
+    setHasFiredHardStop(false)
+    setIsHardStopOpen(false)
   }, [activeSession?.sessionId])
 
   useEffect(() => {
@@ -66,6 +75,14 @@ export function ActiveSession() {
       const newProgress = Math.min((elapsedMs / durationMs) * 100, 100)
       setProgress(newProgress)
 
+      // HYPERFOCUS INTERCEPTOR LOGIC
+      if (isWork && elapsedMs > durationMs * 1.2 && !hasFiredHardStop && activeSession.status === 'RUNNING') {
+        setHasFiredHardStop(true)
+        setIsHardStopOpen(true)
+        pauseTimer(activeSession.sessionId, 'Hyperfocus Intercept', elapsedMs)
+        return
+      }
+
       const remaining = Math.max(0, durationMs - elapsedMs)
       const minutes = Math.floor(remaining / 60000)
       const seconds = Math.floor((remaining % 60000) / 1000)
@@ -80,7 +97,6 @@ export function ActiveSession() {
         document.title = `${content} - TimeOptics`
         setFavicon('✅')
 
-        // Auto transition logic
         if (activeSession.type === TimerType.WORK) {
           completeTimer(activeSession.sessionId, TimerEndType.COMPLETED).then(() => {
             startTimer(content, TimerType.BREAK, activeSession.sessionId)
@@ -98,7 +114,6 @@ export function ActiveSession() {
       }
     }
 
-    // Initial update
     updateTimer()
 
     let interval: NodeJS.Timeout
@@ -111,7 +126,7 @@ export function ActiveSession() {
       document.title = originalTitle
       setFavicon('🐿️')
     }
-  }, [activeSession, completeTimer, startTimer])
+  }, [activeSession, completeTimer, startTimer, hasFiredHardStop, pauseTimer])
 
   if (!activeSession) return null
 
@@ -138,42 +153,22 @@ export function ActiveSession() {
 
   if (isMinimized) {
     return (
-      <button 
-        className="relative flex items-center gap-2 h-8 min-w-[140px] rounded-md border border-primary/20 bg-background px-2 hover:bg-accent/50 cursor-pointer overflow-hidden transition-colors"
+      <MinimizedTimer 
+        isWork={isWork}
+        isPaused={isPaused}
+        timeLeftStr={timeLeftStr}
+        content={activeSession.content || ''}
+        progress={progress}
         onClick={() => setIsMinimized(false)}
-        title="Resume/View Timer"
-      >
-        {isWork ? (
-          <TargetIcon className="h-3 w-3 text-primary animate-pulse" />
-        ) : (
-          <CoffeeIcon className="h-3 w-3 text-primary animate-pulse" />
-        )}
-        <span className="text-xs font-bold font-mono tracking-tight tabular-nums relative z-10">
-          {isPaused ? 'PAUSED' : timeLeftStr}
-        </span>
-        {activeSession?.content && (
-          <span className="text-xs font-medium tabular-nums tracking-tight truncate max-w-[100px] relative z-10">
-            {activeSession.content}
-          </span>
-        )}
-        <Progress
-          value={progress}
-          className={cn(
-            'absolute bottom-0 left-0 right-0 h-full opacity-10 rounded-none z-0',
-            isWork ? 'bg-primary' : 'bg-blue-500',
-          )}
-        />
-      </button>
+      />
     )
   }
 
-  // Render a full-screen fixed overlay using a portal
   return typeof document !== 'undefined' ? createPortal(
     <div className={cn(
       "fixed inset-0 z-[100] flex flex-col items-center justify-center p-8 backdrop-blur-md transition-colors duration-500",
       isWork ? "bg-red-500/5 dark:bg-red-950/20" : "bg-blue-500/5 dark:bg-blue-950/20"
     )}>
-      {/* Minimize button (only when paused) */}
       {isPaused && (
         <Button
           variant="ghost"
@@ -186,7 +181,6 @@ export function ActiveSession() {
         </Button>
       )}
 
-      {/* Absolute Stop button in top right for emergency aborts */}
       <Button
         variant="ghost"
         size="icon"
@@ -197,7 +191,6 @@ export function ActiveSession() {
         <Square className="h-6 w-6" />
       </Button>
 
-      {/* The main dial and text */}
       <div className="w-full flex items-center justify-center mt-[-5vh]">
         <TimerDial
           progress={progress}
@@ -209,48 +202,36 @@ export function ActiveSession() {
         />
       </div>
 
-      {/* Main Controls Overlay - Rendered in normal flow below the dial */}
-      <div className="mt-8 flex items-center gap-4 bg-background/80 backdrop-blur-xl p-3 rounded-full border border-border shadow-2xl">
-        {!isPaused ? (
-          <Button 
-            size="lg" 
-            variant="default"
-            className="rounded-full h-14 px-8 text-lg font-medium shadow-lg"
-            onClick={() => setIsPauseModalOpen(true)}
-          >
-            <PauseIcon className="h-5 w-5 mr-2" />
-            Pause
-          </Button>
-        ) : (
-          <Button 
-            size="lg" 
-            variant="default"
-            className="rounded-full h-14 px-8 text-lg font-medium shadow-lg animate-pulse"
-            onClick={handleResume}
-          >
-            <PlayIcon className="h-5 w-5 mr-2" />
-            Resume
-          </Button>
-        )}
-
-        <div className="w-px h-8 bg-border mx-2" />
-
-        <Button 
-          size="lg" 
-          variant="secondary"
-          className="rounded-full h-14 px-6 font-medium shadow-sm hover:bg-secondary/80"
-          onClick={handleAdd5Mins}
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          5m
-        </Button>
-      </div>
+      <TimerControls 
+        isPaused={isPaused}
+        onPause={() => setIsPauseModalOpen(true)}
+        onResume={handleResume}
+        onAdd5Mins={handleAdd5Mins}
+        onUnblock={() => setIsUnblockerOpen(true)}
+      />
 
       <PauseModal
         open={isPauseModalOpen}
         onOpenChange={setIsPauseModalOpen}
         onPause={handlePauseSubmit}
       />
+
+      <UnblockerModal 
+        isOpen={isUnblockerOpen}
+        onOpenChange={setIsUnblockerOpen}
+        sessionId={activeSession.sessionId}
+      />
+
+      {isHardStopOpen && (
+        <HyperfocusInterceptor 
+          onStop={handleStop}
+          onExtend={() => {
+            setIsHardStopOpen(false)
+            handleAdd5Mins()
+            handleResume()
+          }}
+        />
+      )}
     </div>,
     document.body
   ) : null

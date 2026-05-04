@@ -8,17 +8,19 @@ import { PlanPreferences } from '@/lib/types'
 export async function POST(req: Request) {
   try {
     const input = await req.json()
-    const today = startOfDay(new Date())
-    const plan = await prisma.plan.findUnique({ where: { date: today } })
-    const preferences = (plan?.preferences as unknown as PlanPreferences) || null
+    
+    const latestPlan = await prisma.plan.findFirst({
+      orderBy: { date: 'desc' }
+    })
+    const preferences = (latestPlan?.preferences as unknown as PlanPreferences) || null
 
     if (!input || !input.content) {
       return new Response('Plan content is required', { status: 400 })
     }
 
     // Fetch context for the prompt
-    const [okrs, projects, stakeholders] = await Promise.all([
-      prisma.oKR.findMany({ where: { status: 'ACTIVE' } }),
+    const [objectives, projects, stakeholders] = await Promise.all([
+      prisma.objective.findMany({ where: { status: 'ACTIVE' }, include: { keyResults: true } }),
       prisma.project.findMany({ where: { status: 'ACTIVE' } }),
       prisma.stakeholderGroup.findMany(),
     ])
@@ -35,7 +37,7 @@ export async function POST(req: Request) {
         Your goal is to triage their brain dump into a strategic, actionable delivery plan that protects their time and focus.
 
         Current Context:
-        - Active OKRs: ${JSON.stringify(okrs)}
+        - Strategic Priorities (OKRs): ${JSON.stringify(objectives)}
         - Active Projects: ${JSON.stringify(projects)}
         - Stakeholders: ${JSON.stringify(stakeholders)}
         - User Brain Dump: "${input.content}"
@@ -44,28 +46,23 @@ export async function POST(req: Request) {
 
         Instructions for Task Generation:
         1. Actionable Tasks: Each task must be a clear, discrete deliverable.
-        2. MoSCoW Distribution:
-           - MUST: Absolute critical focus today (Max 30% of total tasks).
-           - SHOULD: Important but can slide if meetings run over (Max 40%).
-           - COULD: Nice to have if energy is high.
-           - WONT: Archive/Decline.
-        3. ADHD Safety:
+        2. Size mapping (Cognitive Load):
+           - XS: <15m, S: 30m, M: 60m, L: 120m, XL: 240m+
+        3. Impact mapping:
+           - NEEDLE: Strategic, high-leverage, or derisking work (moves projects forward).
+           - BUCKET: Maintenance, KTLO, administrative, or "filling the gaps".
+        4. ADHD Safety:
            - Avoid vague titles like "Review documents". Use "Identify 3 gaps in API spec".
-           - Break anything > 2 pomodoros into smaller sub-tasks.
-           - Flag "ADHD Traps": tasks with high context-switch cost.
-        4. Classification:
-           - STRATEGIC: Directly moves an OKR or Initiative.
-           - KTLO (Keep The Lights On): Maintenance, bugs, small requests.
-           - ADMIN: Emails, scheduling, expense reports.
-           - INTERRUPT: Unexpected fires from stakeholders.
-        5. Effort (T-Shirt): Based on cognitive complexity and risk, not just time.
-        6. Estimated Pomodoros: Number of 25-minute blocks required.
+           - Break anything > 2 hours (L) into smaller sub-tasks.
+        5. Strategic Alignment:
+           - Link tasks to active Projects or Stakeholders where obvious.
+        6. The 50% Buffer Principle: Assume that unexpected requests take up half the available time; prioritize accordingly.
 
-        Reasoning: Explain your prioritization logic, specifically how you balanced KTLO vs Strategic work.
+        Reasoning: Explain your prioritization logic, specifically how you ensured the user has a manageable load with space for reactive work.
         
         Tasks vs Backlog:
-        - tasks: Items the user SHOULD or MUST do TODAY (based on meeting hours and energy).
-        - backlog: Items that were in the dump but are lower priority or don't fit today.
+        - tasks: Items the user should focus on for their immediate planning.
+        - backlog: Items that are important but not urgent.
         
         Notes: Provide 1-2 sentences of encouragement or executive function advice (e.g., "Batch your Slack replies after your deep work block").
       `,

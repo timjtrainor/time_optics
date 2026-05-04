@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
-import { TaskStatus, TaskPriority, TaskType } from '@/lib/types'
+import { TaskStatus, EffortSize, TaskImpact } from '@/lib/types'
 
 export default function InboxPage() {
   const { captureItems, fetchCaptureItems, createCaptureItem, deleteCaptureItem, createTask } = useStore()
@@ -52,12 +52,12 @@ export default function InboxPage() {
     try {
       await createTask({
         title: item.rawText,
-        status: TaskStatus.TODO,
-        priority: TaskPriority.P2,
-        taskType: TaskType.STRATEGIC
+        status: TaskStatus.BACKLOG,
+        size: EffortSize.M,
+        impact: TaskImpact.BUCKET
       })
       await deleteCaptureItem(item.id)
-      toast.success('Converted to task')
+      toast.success('Converted to backlog task')
     } catch (error) {
       toast.error('Failed to convert to task')
     }

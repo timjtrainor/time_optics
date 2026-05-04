@@ -14,7 +14,12 @@ export async function POST() {
       return NextResponse.json({ success: true, processed: 0 })
     }
 
-    const model = getAgentModel('prioritizer', null)
+    const latestPlan = await prisma.plan.findFirst({
+      orderBy: { date: 'desc' }
+    })
+    const preferences = latestPlan?.preferences ? (latestPlan.preferences as any) : null
+
+    const model = getAgentModel('prioritizer', preferences)
     
     const { object } = await generateObject({
       model: model as any,
@@ -22,12 +27,20 @@ export async function POST() {
         tasks: z.array(z.object({
           originalId: z.number(),
           title: z.string(),
-          priority: z.enum(['P0', 'P1', 'P2', 'P3']),
-          taskType: z.enum(['STRATEGIC', 'KTLO', 'INTERRUPT', 'ADMIN']),
-          description: z.string().optional(),
+          size: z.enum(['XS', 'S', 'M', 'L', 'XL']),
+          impact: z.enum(['NEEDLE', 'BUCKET']),
+          context: z.string().optional(),
         }))
       }),
       prompt: `You are an expert Chief of Staff. Triage the following capture items into actionable tasks.
+      
+      Size mapping:
+      XS: <15m, S: 30m, M: 1h, L: 2h, XL: 4h+
+      
+      Impact mapping:
+      NEEDLE: Strategic, high-leverage, or derisking work.
+      BUCKET: Maintenance, KTLO, or administrative work.
+      
       Items:
       ${items.map(i => `ID ${i.id}: ${i.rawText}`).join('\n')}
       `
@@ -39,11 +52,11 @@ export async function POST() {
         prisma.task.create({
           data: {
             title: taskData.title,
-            priority: taskData.priority,
-            taskType: taskData.taskType,
-            description: taskData.description,
+            size: taskData.size as any,
+            impact: taskData.impact as any,
+            context: taskData.context,
             captureResolvedId: taskData.originalId,
-            aiGenerated: true
+            status: 'BACKLOG'
           }
         }),
         prisma.captureItem.update({

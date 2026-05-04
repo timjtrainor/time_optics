@@ -28,6 +28,8 @@ model TimerSession {
   pauseNote            String?
   pausedAt             DateTime?
   status               String    @default("RUNNING")
+  hardStopTriggered    Boolean   @default(false)
+  extensionCount       Int       @default(0)
 }
 
 model ChatHistory {
@@ -54,17 +56,19 @@ model OKR {
 }
 
 model Initiative {
-  id          Int       @id @default(autoincrement())
-  title       String
-  description String?
-  okrId       Int
-  status      String    @default("ACTIVE")
-  targetDate  DateTime?
-  color       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  okr         OKR       @relation(fields: [okrId], references: [id])
-  projects    Project[]
+  id             Int       @id @default(autoincrement())
+  title          String
+  description    String?
+  okrId          Int
+  status         String    @default("ACTIVE")
+  targetDate     DateTime?
+  color          String?
+  ambiguityLevel String    @default("MEDIUM")
+  keyUnknowns    String[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  okr            OKR       @relation(fields: [okrId], references: [id])
+  projects       Project[]
 }
 
 model Project {
@@ -76,6 +80,9 @@ model Project {
   targetDate         DateTime?
   color              String?
   stakeholderGroupId Int?
+  expectedImpact     String?
+  actualImpact       String?
+  isL6PromoMaterial  Boolean           @default(false)
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   initiative         Initiative?       @relation(fields: [initiativeId], references: [id])
@@ -105,6 +112,9 @@ model Task {
   sortOrder          Int               @default(0)
   parentTaskId       Int?
   captureResolvedId  Int?              @unique
+  strategicWeight    Int               @default(5)
+  impactHypothesis   String?
+  isUnblocking       Boolean           @default(false)
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   resolvedFrom       CaptureItem?      @relation(fields: [captureResolvedId], references: [id])
@@ -151,5 +161,3 @@ model CaptureItem {
   updatedAt      DateTime @updatedAt
   resolvedTask   Task?
 }
-
-

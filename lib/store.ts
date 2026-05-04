@@ -5,13 +5,15 @@ import {
   TimerSession, 
   ChatHistory, 
   Task, 
-  OKR, 
+  Objective,
+  KeyResult,
   Initiative,
   Project,
   StakeholderGroup, 
   CaptureItem, 
   DayPlan,
-  TaskStatus
+  TaskStatus,
+  Sprint
 } from './types'
 
 interface TimeOpticsState {
@@ -19,11 +21,13 @@ interface TimeOpticsState {
   activeSession: TimerSession | null
   history: ChatHistory[]
   tasks: Task[]
-  okrs: OKR[]
+  objectives: Objective[]
   projects: Project[]
   stakeholderGroups: StakeholderGroup[]
   captureItems: CaptureItem[]
   dayPlan: DayPlan | null
+  sprints: Sprint[]
+  activeSprint: Sprint | null
   isLoading: boolean
   sidebarCollapsed: boolean
   
@@ -40,15 +44,23 @@ interface TimeOpticsState {
   fetchHistory: (type: string, limit?: number) => Promise<void>
   saveHistory: (type: string, input: any, output: any, title: string, metadata?: any) => Promise<void>
 
+  // Sprint Actions
+  fetchSprints: (filters?: any) => Promise<void>
+  createSprint: (data: Partial<Sprint>) => Promise<void>
+  updateSprint: (id: number, data: Partial<Sprint>) => Promise<void>
+  startSprint: (id: number) => Promise<void>
+  
   // New Actions
   fetchTasks: (filters?: any) => Promise<void>
   createTask: (data: Partial<Task>) => Promise<void>
   updateTask: (id: number, data: Partial<Task>) => Promise<void>
   deleteTask: (id: number) => Promise<void>
   
-  fetchGoals: () => Promise<void>
+  fetchObjectives: () => Promise<void>
   fetchProjects: () => Promise<void>
-  createGoal: (type: string, data: Partial<OKR | Project | Initiative>) => Promise<void>
+  createGoal: (type: string, data: any) => Promise<void>
+  updateGoal: (type: string, id: number, data: any) => Promise<void>
+  deleteGoal: (type: string, id: number) => Promise<void>
   
   fetchStakeholders: () => Promise<void>
   createStakeholder: (data: Partial<StakeholderGroup>) => Promise<void>
@@ -67,13 +79,60 @@ export const useStore = create<TimeOpticsState>((set, get) => ({
   activeSession: null,
   history: [],
   tasks: [],
-  okrs: [],
+  objectives: [],
   projects: [],
   stakeholderGroups: [],
   captureItems: [],
   dayPlan: null,
+  sprints: [],
+  activeSprint: null,
   isLoading: false,
   sidebarCollapsed: false,
+
+  fetchSprints: async (filters = {}) => {
+    const params = new URLSearchParams(filters)
+    const res = await fetch(`/api/sprints?${params}`)
+    const sprints = await res.json()
+    set({ 
+      sprints,
+      activeSprint: sprints.find((s: Sprint) => s.status === 'ACTIVE') || null
+    })
+  },
+
+  createSprint: async (data) => {
+    const res = await fetch('/api/sprints', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+    const sprint = await res.json()
+    set(state => ({ sprints: [...state.sprints, sprint] }))
+  },
+
+  updateSprint: async (id, data) => {
+    const res = await fetch(`/api/sprints/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    })
+    const updated = await res.json()
+    set(state => ({
+      sprints: state.sprints.map(s => s.id === id ? updated : s),
+      activeSprint: updated.status === 'ACTIVE' ? updated : (state.activeSprint?.id === id ? null : state.activeSprint)
+    }))
+  },
+
+  startSprint: async (id) => {
+    // Specifically sets status to ACTIVE and updates UI
+    const res = await fetch(`/api/sprints/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'ACTIVE' })
+    })
+    const updated = await res.json()
+    set(state => ({
+      sprints: state.sprints.map(s => s.id === id ? updated : s.status === 'ACTIVE' ? { ...s, status: 'CLOSED' } : s),
+      activeSprint: updated
+    }))
+    toast.success('Sprint started! Focus mode engaged.')
+  },
 
   fetchPlan: async (date) => {
     set({ isLoading: true })
@@ -212,24 +271,56 @@ export const useStore = create<TimeOpticsState>((set, get) => ({
     }
   },
 
-  fetchGoals: async () => {
+  fetchObjectives: async () => {
     const res = await fetch('/api/goals')
-    const okrs = await res.json()
-    set({ okrs })
+    const objectives = await res.json()
+    set({ objectives })
   },
 
-  createGoal: async (type: string, data: Partial<OKR | Project | Initiative>) => {
+  fetchProjects: async () => {
+    const res = await fetch('/api/goals?type=project')
+    const projects = await res.json()
+    set({ projects })
+  },
+
+  createGoal: async (type, data) => {
     try {
       const res = await fetch(`/api/goals?type=${type}`, {
         method: 'POST',
         body: JSON.stringify(data)
       })
-      if (!res.ok) throw new Error('Failed to create goal')
-      const newGoal = await res.json()
-      if (type === 'okr') set(state => ({ okrs: [newGoal, ...state.okrs] }))
-      else get().fetchGoals()
+      if (!res.ok) throw new Error(`Failed to create ${type}`)
+      await get().fetchObjectives()
+      toast.success(`${type} created successfully`)
     } catch (error) {
-      toast.error('Failed to create goal')
+      toast.error(`Failed to create ${type}`)
+    }
+  },
+
+  updateGoal: async (type, id, data) => {
+    try {
+      const res = await fetch(`/api/goals?type=${type}&id=${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      })
+      if (!res.ok) throw new Error(`Failed to update ${type}`)
+      await get().fetchObjectives()
+      toast.success(`${type} updated successfully`)
+    } catch (error) {
+      toast.error(`Failed to update ${type}`)
+    }
+  },
+
+  deleteGoal: async (type, id) => {
+    try {
+      const res = await fetch(`/api/goals?type=${type}&id=${id}`, {
+        method: 'DELETE'
+      })
+      if (!res.ok) throw new Error(`Failed to delete ${type}`)
+      await get().fetchObjectives()
+      toast.success(`${type} deleted successfully`)
+    } catch (error) {
+      toast.error(`Failed to delete ${type}`)
     }
   },
 
@@ -304,12 +395,6 @@ export const useStore = create<TimeOpticsState>((set, get) => ({
     } catch (error) {
       toast.error('Failed to update day plan')
     }
-  },
-
-  fetchProjects: async () => {
-    const res = await fetch('/api/goals?type=project')
-    const projects = await res.json()
-    set({ projects })
   },
 
   toggleSidebar: () => set(state => ({ sidebarCollapsed: !state.sidebarCollapsed }))

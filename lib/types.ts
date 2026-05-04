@@ -14,13 +14,14 @@ export interface PlanPreferences {
   openRouterKey?: string
   ollamaEndpoint?: string
   baseURL?: string
-  model?: string
+  defaultProvider?: AgentProvider
+  defaultModel?: string
   agents?: Record<string, AgentConfig>
 }
 
 export interface AgentConfig {
-  provider: AgentProvider
-  model: string
+  provider?: AgentProvider
+  model?: string
 }
 
 export enum AgentProvider {
@@ -53,6 +54,8 @@ export interface TimerSession {
   pauseNote?: string | null
   accumulatedElapsedMs: number
   pausedAt?: Date | null
+  hardStopTriggered?: boolean
+  extensionCount?: number
 }
 
 export interface ChatHistory<TInput = unknown, TOutput = unknown> {
@@ -66,25 +69,12 @@ export interface ChatHistory<TInput = unknown, TOutput = unknown> {
 }
 
 export enum TaskStatus {
+  BACKLOG = 'BACKLOG',
   TODO = 'TODO',
   IN_PROGRESS = 'IN_PROGRESS',
   DONE = 'DONE',
   BLOCKED = 'BLOCKED',
   DEFERRED = 'DEFERRED',
-}
-
-export enum TaskPriority {
-  P0 = 'P0',
-  P1 = 'P1',
-  P2 = 'P2',
-  P3 = 'P3',
-}
-
-export enum MoscowClass {
-  MUST = 'MUST',
-  SHOULD = 'SHOULD',
-  COULD = 'COULD',
-  WONT = 'WONT',
 }
 
 export enum EffortSize {
@@ -95,11 +85,9 @@ export enum EffortSize {
   XL = 'XL',
 }
 
-export enum TaskType {
-  STRATEGIC = 'STRATEGIC',
-  KTLO = 'KTLO',
-  INTERRUPT = 'INTERRUPT',
-  ADMIN = 'ADMIN',
+export enum TaskImpact {
+  NEEDLE = 'NEEDLE',
+  BUCKET = 'BUCKET',
 }
 
 export enum StakeholderType {
@@ -117,14 +105,34 @@ export enum EnergyLevel {
   LOW = 'LOW',
 }
 
-export interface OKR {
+export interface Objective {
   id: number
   title: string
   description?: string
-  targetDate?: Date
-  status: 'ACTIVE' | 'ACHIEVED' | 'PAUSED'
-  successMetric?: string
+  quarter?: string
+  type: 'MOONSHOT' | 'ROOFSHOT'
+  status: 'ACTIVE' | 'ACHIEVED' | 'PAUSED' | 'CLOSED'
   color?: string
+  healthMetrics?: any
+  createdAt: Date
+  updatedAt: Date
+  keyResults?: KeyResult[]
+  initiatives?: Initiative[]
+}
+
+export interface KeyResult {
+  id: number
+  objectiveId: number
+  metric: string
+  description?: string
+  unit: string
+  direction: 'INCREASE' | 'DECREASE' | 'ACHIEVE'
+  baselineValue: number
+  currentValue: number
+  targetValue: number
+  confidence: number
+  grade?: number
+  targetDate?: Date
   createdAt: Date
   updatedAt: Date
   initiatives?: Initiative[]
@@ -134,55 +142,74 @@ export interface Initiative {
   id: number
   title: string
   description?: string
-  okrId: number
+  hypothesis?: string
+  objectiveId: number
   status: 'ACTIVE' | 'ON_HOLD' | 'ARCHIVED'
+  priority: 'P0' | 'P1' | 'P2'
+  dri?: string
   targetDate?: Date
-  color?: string
+  ambiguityLevel?: string
+  keyUnknowns?: string[]
   createdAt: Date
   updatedAt: Date
   projects?: Project[]
+  keyResults?: KeyResult[]
 }
 
 export interface Project {
   id: number
   title: string
   description?: string
+  successCriteria?: string
   initiativeId?: number
   status: string
+  priority: 'P0' | 'P1' | 'P2'
+  dri?: string
   targetDate?: Date
   color?: string
   stakeholderGroupId?: number
+  expectedImpact?: string
+  actualImpact?: string
+  isL6PromoMaterial?: boolean
   createdAt: Date
   updatedAt: Date
   tasks?: Task[]
   stakeholderGroup?: StakeholderGroup
+  initiative?: Initiative
+}
+
+export interface Sprint {
+  id: number
+  name: string
+  startDate: Date
+  endDate: Date
+  status: 'DRAFT' | 'PROPOSED' | 'ACTIVE' | 'CLOSED'
+  aiSummary?: string
+  capacityMinutes: number
+  createdAt: Date
+  updatedAt: Date
+  tasks?: Task[]
 }
 
 export interface Task {
   id: number
   title: string
-  description?: string
+  context?: string
   status: TaskStatus
-  priority: TaskPriority
-  moscowClass?: MoscowClass
-  effort?: EffortSize
-  estimatedPomodoros: number
-  actualPomodoros: number
-  dueDate?: Date
-  scheduledDate?: Date
-  completedAt?: Date
-  tags: string[]
-  projectId?: number
-  stakeholderGroupId?: number
-  taskType: TaskType
-  aiGenerated: boolean
-  aiReasoning?: string
-  sortOrder: number
-  parentTaskId?: number
+  size: EffortSize
+  impact: TaskImpact
+  actualMinutes: number
+  isUnplanned: boolean
+  sprintId?: number | null
+  projectId?: number | null
+  stakeholderGroupId?: number | null
+  parentTaskId?: number | null
+  captureResolvedId?: number | null
   createdAt: Date
   updatedAt: Date
   project?: Project
   stakeholderGroup?: StakeholderGroup
+  sprint?: Sprint
 }
 
 export interface StakeholderGroup {

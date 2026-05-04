@@ -28,6 +28,8 @@ model TimerSession {
   pauseNote            String?
   accumulatedElapsedMs Int       @default(0)
   pausedAt             DateTime?
+  hardStopTriggered    Boolean   @default(false)
+  extensionCount       Int       @default(0)
 }
 
 model ChatHistory {
@@ -40,76 +42,138 @@ model ChatHistory {
   metadata  Json?
 }
 
-model OKR {
+model Objective {
   id            Int          @id @default(autoincrement())
   title         String
   description   String?
-  targetDate    DateTime?
-  status        String       @default("ACTIVE") // ACTIVE, ACHIEVED, PAUSED
-  successMetric String?
+  quarter       String?
+  type          String       @default("MOONSHOT") // MOONSHOT, ROOFSHOT
+  status        String       @default("ACTIVE") // ACTIVE, ACHIEVED, PAUSED, CLOSED
   color         String?
+  healthMetrics Json?
+  keyResults    KeyResult[]
   initiatives   Initiative[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
 
+model KeyResult {
+  id            Int                   @id @default(autoincrement())
+  objectiveId   Int
+  objective     Objective             @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  metric        String
+  description   String?
+  unit          String                @default("count") // count, %, $, hours, score
+  direction     String                @default("INCREASE") // INCREASE, DECREASE, ACHIEVE
+  baselineValue Float                 @default(0)
+  currentValue  Float                 @default(0)
+  targetValue   Float                 @default(100)
+  confidence    Float                 @default(0.5)
+  grade         Float?
+  targetDate    DateTime?
+  initiatives   InitiativeKeyResult[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+}
+
 model Initiative {
-  id          Int       @id @default(autoincrement())
-  title       String
-  description String?
-  okrId       Int
-  okr         OKR       @relation(fields: [okrId], references: [id])
-  status      String    @default("ACTIVE") // ACTIVE, ON_HOLD, ARCHIVED
-  targetDate  DateTime?
-  color       String?
-  projects    Project[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id             Int                   @id @default(autoincrement())
+  title          String
+  description    String?
+  hypothesis     String? // The strategic bet: "We believe that..."
+  objectiveId    Int
+  objective      Objective             @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  keyResults     InitiativeKeyResult[]
+  status         String                @default("ACTIVE") // ACTIVE, ON_HOLD, ARCHIVED
+  priority       String                @default("P1") // P0, P1, P2
+  dri            String? // Directly Responsible Individual
+  targetDate     DateTime?
+  ambiguityLevel String                @default("MEDIUM")
+  keyUnknowns    String[]
+  projects       Project[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+}
+
+model InitiativeKeyResult {
+  initiativeId Int
+  keyResultId  Int
+  initiative   Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  keyResult    KeyResult  @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+
+  @@id([initiativeId, keyResultId])
 }
 
 model Project {
   id                 Int               @id @default(autoincrement())
   title              String
   description        String?
+  successCriteria    String? // Definition of Done for this project
   initiativeId       Int?
   initiative         Initiative?       @relation(fields: [initiativeId], references: [id])
-  status             String            @default("ACTIVE")
+  status             String            @default("PLANNING") // PLANNING, ACTIVE, ON_HOLD, DONE
+  priority           String            @default("P1") // P0, P1, P2
+  dri                String? // Directly Responsible Individual
   targetDate         DateTime?
   color              String?
   stakeholderGroupId Int?
   stakeholderGroup   StakeholderGroup? @relation(fields: [stakeholderGroupId], references: [id])
+  expectedImpact     String?
+  actualImpact       String?
+  isL6PromoMaterial  Boolean           @default(false)
   tasks              Task[]
+  aiGenerated        Boolean           @default(false)
+  aiReasoning        String?
+
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
+}
+
+model Sprint {
+  id              Int       @id @default(autoincrement())
+  name            String    // e.g., "Week of May 4th"
+  startDate       DateTime  // Monday
+  endDate         DateTime  // Friday
+  status          String    @default("DRAFT") // DRAFT, PROPOSED, ACTIVE, CLOSED
+  aiSummary       String?   
+  capacityMinutes Int       @default(2400) // 40 hours
+  tasks           Task[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Task {
   id                 Int               @id @default(autoincrement())
   title              String
-  description        String?
-  status             String            @default("TODO") // TODO, IN_PROGRESS, DONE, BLOCKED, DEFERRED
-  priority           String            @default("P2") // P0, P1, P2, P3
-  moscowClass        String?           @default("SHOULD") // MUST, SHOULD, COULD, WONT
-  effort             String?           @default("M") // XS, S, M, L, XL
-  estimatedPomodoros Int               @default(1)
-  actualPomodoros    Int               @default(0)
-  dueDate            DateTime?
-  scheduledDate      DateTime?
-  completedAt        DateTime?
-  tags               String[]
+  context            String?           // Was description, but renamed/adapted for single-line context
+  status             String            @default("BACKLOG") // BACKLOG, TODO, IN_PROGRESS, DONE, BLOCKED, DEFERRED
+  
+  // Single-line visible fields:
+  size               String            @default("M") // XS, S, M, L, XL
+  impact             String            @default("BUCKET") // NEEDLE or BUCKET
+  
+  // Tracking
+  actualMinutes      Int               @default(0)
+  isUnplanned        Boolean           @default(false)
+  
+  // Relations
+  sprintId           Int?
+  sprint             Sprint?           @relation(fields: [sprintId], references: [id])
   projectId          Int?
   project            Project?          @relation(fields: [projectId], references: [id])
   stakeholderGroupId Int?
   stakeholderGroup   StakeholderGroup? @relation(fields: [stakeholderGroupId], references: [id])
-  taskType           String            @default("STRATEGIC") // STRATEGIC, KTLO, INTERRUPT, ADMIN
-  aiGenerated        Boolean           @default(false)
-  aiReasoning        String?
-  sortOrder          Int               @default(0)
+  
+  // Subtasks/Capture links (kept for functionality)
   parentTaskId       Int?
   parentTask         Task?             @relation("SubTasks", fields: [parentTaskId], references: [id])
   subTasks           Task[]            @relation("SubTasks")
   captureResolvedId  Int?              @unique
   resolvedFrom       CaptureItem?      @relation(fields: [captureResolvedId], references: [id])
+  
+  aiGenerated        Boolean           @default(false)
+  aiReasoning        String?
+
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 }
